@@ -3,6 +3,7 @@
 //  InspoQuotes
 //
 //  Created by Angela Yu on 18/08/2018.
+//  Created by Kaviraj Pandey on 23/07/2019.
 //  Copyright © 2018 London App Brewery. All rights reserved.
 //
 
