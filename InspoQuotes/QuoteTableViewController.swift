@@ -8,9 +8,11 @@
 //
 
 import UIKit
+import StoreKit
 
-class QuoteTableViewController: UITableViewController {
+class QuoteTableViewController: UITableViewController,SKPaymentTransactionObserver {
     
+    let productID = "com.londonappbrewery.InspoQuotes"
     var quotesToShow = [
         "Our greatest glory is not in never falling, but in rising every time we fall. — Confucius",
         "All our dreams can come true, if we have the courage to pursue them. – Walt Disney",
@@ -31,12 +33,21 @@ class QuoteTableViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        if isPurchased() {
+            showPremiumQuotes()
+        }
+        SKPaymentQueue.default().add(self)
     }
 
     // MARK: - Table view data source
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-       return quotesToShow.count + 1
+        if isPurchased() {
+            return quotesToShow.count
+        } else {
+            return quotesToShow.count + 1
+        }
+       
     }
     
     
@@ -45,6 +56,8 @@ class QuoteTableViewController: UITableViewController {
         if indexPath.row < quotesToShow.count {
             cell.textLabel?.text = quotesToShow[indexPath.row]
             cell.textLabel?.numberOfLines = 0
+            cell.textLabel?.textColor = #colorLiteral(red: 0, green: 0, blue: 0, alpha: 1)
+            cell.accessoryType = .none
         }
         else {
             cell.textLabel?.text = "Get more quotes"
@@ -57,15 +70,83 @@ class QuoteTableViewController: UITableViewController {
     
     
     //MARK: - Table view delegate methods
+    
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         if indexPath.row == quotesToShow.count {
-            print("Hello someone tapped on get more quotes button!")
+            buyPremiumQuotes()
         }
+        tableView.deselectRow(at: indexPath, animated: true)
     }
 
     
+    //MARK: - In-App purchase methods
     
+    func buyPremiumQuotes() {
+        if SKPaymentQueue.canMakePayments() {//Checks for parental control
+            //Can make payments
+            let paymentRequest = SKMutablePayment()
+            paymentRequest.productIdentifier = productID//for this particular app, request to apple server
+            SKPaymentQueue.default().add(paymentRequest)//auto work will perform here by apple server
+            
+        } else {
+            //Can't make payments
+            print("User can't make payments")
+        }
+        
+    }
+    
+    //Transection condition will check here and kind to notify user
+    func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
+        for transection in transactions {
+            if transection.transactionState == .purchased {
+                //User payment successful
+                print("Transection Successful")
+                showPremiumQuotes()
+                //After successful stop transection process
+                SKPaymentQueue.default().finishTransaction(transection)
+           
+            } else if transection.transactionState == .failed {
+                if let error = transection.error {
+                    let errorDescription = error.localizedDescription
+                    //user payment failed
+                    print("Transection failed due to error \(errorDescription)")
+                }
+                //After successful stop transection process
+                SKPaymentQueue.default().finishTransaction(transection)
+            }
+            else if transection.transactionState == .restored {
+                showPremiumQuotes()
+                print("Transection restored!")
+                navigationItem.setRightBarButton(nil, animated: true)
+                SKPaymentQueue.default().finishTransaction(transection)
+            }
+            
+        }
+    }
+    
+    
+    //MARK: - Premium feature
+    
+    func showPremiumQuotes() {
+        UserDefaults.standard.set(true, forKey: productID)
+        quotesToShow.append(contentsOf: premiumQuotes)
+        tableView.reloadData()
+    }
+    
+    func isPurchased() -> Bool {
+        let purchasedStatus = UserDefaults.standard.bool(forKey: productID)
+        if purchasedStatus {
+            print("Previously purchased")
+            return true
+        }
+        else {
+            print("Never purchases")
+            return false
+        }
+    }
+
     @IBAction func restorePressed(_ sender: UIBarButtonItem) {
+        SKPaymentQueue.default().restoreCompletedTransactions()
         
     }
 
